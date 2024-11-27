@@ -1,0 +1,7 @@
+# gitignore file for agon projects
+
+bin
+release
+
+*.lst
+*.symbols
