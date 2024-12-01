@@ -1,5 +1,7 @@
 # BF
 
+**WARNING:** This project is in early development and may contain bugs.
+
 BF is based on a [similar named language](https://en.wikipedia.org/wiki/Brainfuck) written for the Agon Light 2 computer
 
 BF is written in ez80 assembly using the [ez80asm](https://github.com/envenomator/agon-ez80asm) assembler.
