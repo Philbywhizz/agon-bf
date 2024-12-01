@@ -2,15 +2,15 @@
 # Makefile Options
 # ----------------
 
-NAME			= bf
-EZ80ASM			= ez80asm
+NAME				= bf
+EZ80ASM				= ez80asm
 EZ80ASM_FLAGS		= -x -l -s
 FAB_AGON_EMU_DIR	= ~/Agon/fab-agon-emulator
 FAB_AGON_EMU		= $(FAB_AGON_EMU_DIR)/fab-agon-emulator
 FAB_AGON_EMU_MOS	= $(FAB_AGON_EMU_DIR)/firmware/mos_console8.bin
 FAB_AGON_EMU_VDP	= $(FAB_AGON_EMU_DIR)/firmware/vdp_console8.so
 FAB_AGON_EMU_FLAGS	= --vdp $(FAB_AGON_EMU_VDP) --mos $(FAB_AGON_EMU_MOS) --sdcard bin
-GIT_INFO		:= $(shell git describe --always --tags)
+GIT_INFO			:= $(shell git describe --always --tags)
 
 default: all
 
