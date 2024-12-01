@@ -2,7 +2,7 @@
 # Makefile Options
 # ----------------
 
-NAME			= projectname
+NAME			= bf
 EZ80ASM			= ez80asm
 EZ80ASM_FLAGS		= -x -l -s
 FAB_AGON_EMU_DIR	= ~/Agon/fab-agon-emulator
@@ -36,6 +36,6 @@ clean:
 	rm -fr src/*.lst
 	rm -fr src/*.symbols
 
-run:
+run: all
 	@echo "Launching emulator..."
 	$(FAB_AGON_EMU) $(FAB_AGON_EMU_FLAGS)
