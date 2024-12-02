@@ -50,8 +50,8 @@ This reads in the file loaded in at memory &60000 and uses the 32k of cells star
 
 The following thigs are on my todo list:
 
-- [ ] Command line parameters
+- [X] Command line parameters
   - [ ] Load a file on the command line
-  - [ ] Display parameter help output
+  - [X] Display parameter help output
 - [ ] Debug mode
   - [ ] Program stepper
