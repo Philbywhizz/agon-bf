@@ -6,4 +6,4 @@ The file format is based on [Keep a Change Log](https://keepachangelog.com/en/1.
 
 ## Unreleased
 
-This is the inital version of agon-bg.
+This is the inital version of agon-bf.
