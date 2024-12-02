@@ -1,5 +1,7 @@
 ; Brainf*ck
 
+.include "src/mos_api.inc"
+
 .assume adl=1
 .org $040000
 
@@ -39,27 +41,27 @@ start:
 next_input:
         ld a, (de)                      ; read tape into A
         cp $ff
-        jr z, exit_loop                 ; We've hit $FF, end program
+        jp z, exit_loop                 ; We've hit $FF, end program
         cp '>'
-        jr z, inc_pointer
+        jp z, inc_pointer
         cp '<'
-        jr z, dec_pointer
+        jp z, dec_pointer
         cp '+'
-        jr z, inc_value
+        jp z, inc_value
         cp '-'
-        jr z, dec_value
+        jp z, dec_value
         cp '.'
-        jr z, print_value
+        jp z, print_value
         cp ','
-        jr z, input_value
+        jp z, input_value
         cp '['
-        jr z, open_bracket
+        jp z, open_bracket
         cp ']'
-        jr z, close_bracket
+        jp z, close_bracket
 
         inc de
 
-        jr next_input
+        jp next_input
 
 exit_loop:
 
@@ -83,7 +85,7 @@ exit_loop:
 inc_pointer:
         inc bc                          ; inc the tape pointer
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; < dec tape pointer
@@ -91,7 +93,7 @@ inc_pointer:
 dec_pointer:
         dec bc                          ; dec the tape pointer
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; + inc value at tape pointer
@@ -101,7 +103,7 @@ inc_value:
         inc a                           ; inc
         ld (bc), a                      ; store back into tape
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; - dec value at tape pointer
@@ -111,7 +113,7 @@ dec_value:
         dec a                           ; dec
         ld (bc), a                      ; store back into tape
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; . output content
@@ -120,19 +122,19 @@ print_value:
         ld a, (bc)                      ; load tape value into a
         rst.lil $10                     ; print
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; , input content
 ;--------------------------------------------------
 input_value:
         ld a, $00
-        rst.lil $08                     ; MOS_getkey
+        MOSCALL mos_getkey
         or a
-        jr z, input_value               ; Ignore any zero inputs (SHIFT, CTRL)
+        jp z, input_value               ; Ignore any zero inputs (SHIFT, CTRL)
         ld (bc), a                      ; store to tape
         inc de                          ; inc the input pointer
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; [ start loop
@@ -140,21 +142,21 @@ input_value:
 open_bracket:
         ld a, (bc)                      ; load tape value to a
         cp 0
-        jr z, @skip_loop                ; if zero, skip till next ']'
+        jp z, @skip_loop                ; if zero, skip till next ']'
         push de                         ; save next location on stack
         inc de
-        jr next_input
+        jp next_input
 
 @skip_loop:                             ; skip till next ']'
         inc de
         ld a, (de)
         cp ']'
-        jr nz, @skip_loop
+        jp nz, @skip_loop
         inc de
 
 @done_loop:
         inc de
-        jr next_input
+        jp next_input
 
 ;--------------------------------------------------
 ; ] end loop
@@ -162,13 +164,13 @@ open_bracket:
 close_bracket:
         ld a, (bc)                      ; load tape value to a
         cp 0
-        jr nz, @loopback                ; non-zero - loopback to prev [
+        jp nz, @loopback                ; non-zero - loopback to prev [
         inc de                          ; next instruction
-        jr next_input
+        jp next_input
 
 @loopback:
         pop de
-        jr next_input
+        jp next_input
 
 ; Helper functions
 
@@ -207,7 +209,7 @@ print:
         ret z                           ; Return on 0 terminator
         rst.lil $10                     ; Print it
         inc hl                          ; Next character
-        jr print                        ; Loop back
+        jp print                        ; Loop back
 
 ;--------------------------------------------------
 ; Data storage
