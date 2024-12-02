@@ -43,9 +43,19 @@ start:
 
         ld a, c                         ; C contains the number of arguments enters
         ld (num_args), a                ; store it
+        pop ix                          ; IX: argv
 
         cp 2
         jp c, usage
+
+
+        ld hl, (ix+3)                   ; assume filename in first parameter argv[1]
+        ld de, input_file               ; where to store the file to
+        ld bc, tapeend-tape             ; max file read size of the tape
+
+        MOSCALL mos_load                ; attempt to load the file into the input buffer
+        or a                            ; Test for A=0
+        jp nz, file_error               ; File error
 
         ; Initialise
         call clear_tape                 ; Zero out the tape memory block
@@ -299,6 +309,15 @@ get_token:
         jr @token_loop
 
 ;--------------------------------------------------
+; file_error
+; An error occured reading the input file
+;--------------------------------------------------
+file_error:
+        ld hl, error_txt
+        call print
+        jp exit_prog
+
+;--------------------------------------------------
 ; usage
 ; Simply display the usage details
 ;--------------------------------------------------
@@ -332,4 +351,7 @@ usage_txt:
         .ascii "obfuscated syntax.\r\n"
         .ascii "\r\nUsage:\r\n"
         .ascii "    bf <sourcefile>\r\n\r\n"
+        .db $00
+error_txt:
+        .ascii "Error reading file.\r\n"
         .db $00

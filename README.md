@@ -32,26 +32,22 @@ Note: There are no bounds checking, so if you go outside of this memory map then
 
 ## How to use
 
-The current app reads input from memory location &60000
+Create your bf code in a sourcefile. Then you can simply launch the interpreter with the following command
 
-Until I work out how to read in command line arguments you have to manually load up the bf source files into a particular memory location ($60000) by running the following command from the MOS prompt:
+    BF <sourcefile>
 
-    LOAD <sourcefile.BF> &60000
+This will load the sourcefile into memory at location $060000 and interpret the file using a 32k 'tape' $050000.
 
-Where <sourcefile.BF> is the name of your bf sourcefile.
+For usage information, just issue the command BF on its own (without parameters)
 
-Once that is loaded you can then execute the interpreter with the following command from the MOS prompt:
-
-    BF.BIN
-
-This reads in the file loaded in at memory &60000 and uses the 32k of cells starting at &50000 for the memory of the bf interpreter.
+    BF
 
 ## TODO
 
 The following thigs are on my todo list:
 
 - [X] Command line parameters
-  - [ ] Load a file on the command line
+  - [x] Load a file on the command line
   - [X] Display parameter help output
 - [ ] Debug mode
   - [ ] Program stepper
