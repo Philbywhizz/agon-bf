@@ -53,12 +53,13 @@ start:
         ld de, input_file               ; where to store the file to
         ld bc, tapeend-tape             ; max file read size of the tape
 
+        call clear_input                ; $ff out the input block
         MOSCALL mos_load                ; attempt to load the file into the input buffer
+
+        call clear_tape                 ; Zero out the tape memory block
+
         or a                            ; Test for A=0
         jp nz, file_error               ; File error
-
-        ; Initialise
-        call clear_tape                 ; Zero out the tape memory block
 
         ld bc, tape                     ; Setup the tape pointer
         ld de, input_file               ; set the input pointer at start of file
@@ -198,6 +199,30 @@ close_bracket:
         jp next_input
 
 ; Helper functions
+
+;--------------------------------------------------
+; clear_input - sets the 'input' memory to all $ff
+;--------------------------------------------------
+clear_input:
+        push hl                         ; save registers
+        push bc
+        push de
+
+        ld hl, input_file               ; Start of input block
+        ld (hl), $ff                    ; Set input location #0 to $ff
+
+        push hl                         ; DE = HL + 1
+        pop de
+        inc de
+
+        ld bc, $007fff                  ; zero out 32k
+
+        ldir
+
+        pop de                          ; restore registers
+        pop bc
+        pop hl
+        ret
 
 ;--------------------------------------------------
 ; clear_tape - sets the 'tape' memory to all zero
@@ -345,7 +370,7 @@ print:
 stack_ptr:
         .dw24 $000000
 usage_txt:
-        .ascii "Agon Brainf*ck interpreter v0.1a - Phil Howlett (@Philbywhizz)\r\n\r\n"
+        .ascii "Agon Brainf*ck interpreter v0.2 - Phil Howlett (@Philbywhizz)\r\n\r\n"
         .ascii "An esoteric programming language with only eight commands. It is\r\n"
         .ascii "designed to challenge and amuse programmers with its minimalistic and\r\n"
         .ascii "obfuscated syntax.\r\n"

@@ -27,7 +27,7 @@ package: all
 	cp bin/$(NAME).bin release/
 	cp tests/hello.bf release/
 	cd release && zip -r $(NAME)-$(GIT_INFO).zip *
-	rm -fr release/README.md release/$(NAME).bin
+	rm -fr release/README.md release/$(NAME).bin release/hello.bf
 
 clean:
 	@echo "Cleaning project..."
