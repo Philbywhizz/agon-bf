@@ -1,70 +1,115 @@
-; Brainf*ck
+;==============================================================================
+; Brainf*ck interpreter for the Agon Light ez80 computer
+;
+; Programming language specs at https://en.wikipedia.org/wiki/Brainfuck
+; Repository: https://github.com/Philbywhizz/agon-bf
+;==============================================================================
 
-.include "src/mos_api.inc"
+        .include "src/mos_api.inc"
 
-.assume adl=1
-.org $040000
+        .assume adl=1
+        .org $040000
 
-        jp start                        ; Program entry point
+        jp start                        ; Jump to program entry point
 
-; memory map
-tape:           .equ    $050000         ; tape start
-tapeend:        .equ    $057fff         ; tape end
+;==============================================================================
+; Application memory map
+;==============================================================================
 
-input_file:     .equ    $060000         ; mem location of input file
+        ; The 'tape' is a fictional length of tape that is 32kb long, it holds
+        ; the memory of the bf machine to use.
+tape:           .equ    $050000         ; virtual tape start
+tapeend:        .equ    $057fff         ; virtual tape end
 
+        ; input_file is a block of memory to store the source code of the bf
+        ; program.
+input_file:     .equ    $060000         ; input block start
+input_file_end: .equ    $067fff         ; input block end
+;------------------------------------------------------------------------------
+
+;==============================================================================
 ; MOS header
-.align 64
-.db "MOS", 0, 1
+;==============================================================================
 
+        ; The MOS header is the binary signature that identifies this is a
+        ; binary application that is executable.
+        .align 64                       ; Ensure align at $040040 boundry
+        .db "MOS"                       ; MOS signature
+        .db 0                           ; Binary version
+        .db 1                           ; ADL application
+;------------------------------------------------------------------------------
+
+;==============================================================================
 ; command line arguments data
+;==============================================================================
+
+        ; This block of data stores application arguments from MOS. It consists
+        ; of an array of up to 16 x 3 bytes (16 x 24-bits) pointers to the
+        ; memory location where MOS stores the last command
 app_name:       .asciz  "bf.bin"        ; Name of the executable (arg1)
 max_args:       .equ    16              ; Max number of arguments in argv
 arg_ptr:        .blkb   max_args * 3, 0 ; max 16 x 3 bytes per argument
 num_args:       .db     0               ; number of arguments entered
+;------------------------------------------------------------------------------
 
-        ; Registers used for the BF interpreter:
-        ; BC    Data Pointer
-        ; DE    Input Pointer
+;==============================================================================
+; Register usage
+;==============================================================================
+
+        ; The following registers are used in the main loop by the bf
+        ; interpreter:
+        ;
+        ; BC    Data Pointer (where on the virtual tape we are)
+        ; DE    Input Pointer (where in the source file we are)
         ; HL    scratch pointer
+;------------------------------------------------------------------------------
 
+;==============================================================================
+; BF application loop
+;==============================================================================
 start:
-        push af                         ; save all registers
+        ; save all registers
+        push af
         push bc
         push de
         push ix
         push iy
-        ld (stack_ptr), sp              ; save the stack pointer
+        ld (stack_ptr), sp
 
-                                        ; Determine the commandline arguments
+        ; Determine the commandline arguments
         ld ix, arg_ptr
         push ix
         call parse_params               ; Parse the arguments
 
-        ld a, c                         ; C contains the number of arguments enters
+        ld a, c                         ; C contains the number of args entered
         ld (num_args), a                ; store it
         pop ix                          ; IX: argv
 
         cp 2
-        jp c, usage
+        jp c, usage                     ; if C < 2 then just show program usage
 
+        ; Initialization
+bf_init:
+        call clear_input                ; fill the input block with $ff
+        call clear_tape                 ; fill the tape memory block with $00
 
-        ld hl, (ix+3)                   ; assume filename in first parameter argv[1]
+        ld hl, (ix+3)                   ; assume filename in first param argv[1]
         ld de, input_file               ; where to store the file to
         ld bc, tapeend-tape             ; max file read size of the tape
 
-        call clear_input                ; $ff out the input block
-        MOSCALL mos_load                ; attempt to load the file into the input buffer
+        ; attempt to load the file into the input buffer
+        MOSCALL mos_load
+        or a
+        jp nz, file_error               ; A=0? Abort on File error
 
-        call clear_tape                 ; Zero out the tape memory block
-
-        or a                            ; Test for A=0
-        jp nz, file_error               ; File error
-
-        ld bc, tape                     ; Setup the tape pointer
-        ld de, input_file               ; set the input pointer at start of file
+        ; Setup the tape and input pointers
+        ld bc, tape
+        ld de, input_file
 
 next_input:
+        ; This is the main processing loop. It grabs the character at the input
+        ; pointer, and executes the command. If a command isn't on the list then
+        ; it is simply ignored.
         ld a, (de)                      ; read tape into A
         cp $ff
         jp z, exit_prog                 ; We've hit $FF, end program
@@ -85,74 +130,87 @@ next_input:
         cp ']'
         jp z, close_bracket
 
+        ; parsing done - move onto the next input location and repeat the loop
         inc de
-
         jp next_input
 
 exit_prog:
 
-        ld sp, (stack_ptr)              ; restore the stack pointer
-        pop iy                          ; restore all registers
+        ; restore all registers
+        ld sp, (stack_ptr)
+        pop iy
         pop ix
         pop de
         pop bc
         pop af
 
-        ld hl, 0                        ; return code 0
+        ; set return code 0 back to MOS
+        ld hl, 0
         ret
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+
+;==============================================================================
 ; brainf*ck commands
-;--------------------------------------------------
+;==============================================================================
 
-;--------------------------------------------------
+        ; The language consits of eight (8) commands. A program is a sequence
+        ; of these commands, possibly interspersed with other characters (which
+        ; are ignored).
+
+;------------------------------------------------------------------------------
 ; > inc tape pointer
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 inc_pointer:
         inc bc                          ; inc the tape pointer
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; < dec tape pointer
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 dec_pointer:
         dec bc                          ; dec the tape pointer
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; + inc value at tape pointer
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 inc_value:
         ld a, (bc)                      ; load tape value into a
         inc a                           ; inc
         ld (bc), a                      ; store back into tape
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; - dec value at tape pointer
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 dec_value:
         ld a, (bc)                      ; load tape value into a
         dec a                           ; dec
         ld (bc), a                      ; store back into tape
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; . output content
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 print_value:
         ld a, (bc)                      ; load tape value into a
         rst.lil $10                     ; print
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; , input content
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 input_value:
         ld a, $00
         MOSCALL mos_getkey
@@ -161,10 +219,11 @@ input_value:
         ld (bc), a                      ; store to tape
         inc de                          ; inc the input pointer
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; [ start loop
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 open_bracket:
         ld a, (bc)                      ; load tape value to a
         cp 0
@@ -183,10 +242,11 @@ open_bracket:
 @done_loop:
         inc de
         jp next_input
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; ] end loop
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 close_bracket:
         ld a, (bc)                      ; load tape value to a
         cp 0
@@ -197,12 +257,19 @@ close_bracket:
 @loopback:
         pop de
         jp next_input
+;------------------------------------------------------------------------------
 
+
+;==============================================================================
 ; Helper functions
+;==============================================================================
 
-;--------------------------------------------------
-; clear_input - sets the 'input' memory to all $ff
-;--------------------------------------------------
+        ; Helper functions provide common support to the bf application
+
+;------------------------------------------------------------------------------
+; clear_input
+; - sets the 'input' memory to all $ff
+;------------------------------------------------------------------------------
 clear_input:
         push hl                         ; save registers
         push bc
@@ -223,10 +290,12 @@ clear_input:
         pop bc
         pop hl
         ret
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
-; clear_tape - sets the 'tape' memory to all zero
-;--------------------------------------------------
+;------------------------------------------------------------------------------
+; clear_tape
+;- sets the 'tape' memory to all zero
+;------------------------------------------------------------------------------
 clear_tape:
         push hl                         ; save registers
         push bc
@@ -247,8 +316,9 @@ clear_tape:
         pop bc
         pop hl
         ret
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; parse_params
 ; Parse the parameter string into a C style array
 ; Parameters:
@@ -256,7 +326,7 @@ clear_tape:
 ; IX: Address of array pointer storage
 ; Returns:
 ;  C: Number of paramaters
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 parse_params:
         ld bc, app_name
         ld (ix+0), bc                   ; argv[0]
@@ -292,8 +362,9 @@ parse_params:
         cp b
         jr c, @parse_step2              ; and loop
         ret
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; skip_spaces
 ; skip the spaces in the paramater string
 ; Parameters:
@@ -301,15 +372,16 @@ parse_params:
 ; Returns:
 ; HL: Address of the next non-space character
 ;  F: Z if at end of string, otherwise NZ if there are more tokens to be parsed
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 skip_spaces:
         ld a, (hl)
         cp ' '
         ret nz
         inc hl
         jr skip_spaces
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; get_token
 ; Get the next token
 ; Parameters:
@@ -317,7 +389,7 @@ skip_spaces:
 ; Returns:
 ; HL: Address of first character after token
 ;  C: Length of token (in characters)
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 get_token:
         ld c, 0                         ; Initialise length
 
@@ -332,30 +404,33 @@ get_token:
         inc hl                          ; Advance to next character
         inc c                           ; Increment length
         jr @token_loop
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; file_error
 ; An error occured reading the input file
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 file_error:
         ld hl, error_txt
         call print
         jp exit_prog
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; usage
 ; Simply display the usage details
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 usage:
         ld hl, usage_txt
         call print
         jp exit_prog
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 ; print - outputs a stream of bytes pointed to by
 ; HL, until HL = 0
 ; Input: HL
-;--------------------------------------------------
+;------------------------------------------------------------------------------
 print:
         ld a, (hl)                      ; Get first character
         or a                            ; Is it $00?
@@ -363,14 +438,19 @@ print:
         rst.lil $10                     ; Print it
         inc hl                          ; Next character
         jr print                        ; Loop back
+;------------------------------------------------------------------------------
 
-;--------------------------------------------------
+
+;==============================================================================
 ; Data storage
-;--------------------------------------------------
+;==============================================================================
+
+        ; Contains variable and string storage
+
 stack_ptr:
         .dw24 $000000
 usage_txt:
-        .ascii "Agon Brainf*ck interpreter v0.2 - Phil Howlett (@Philbywhizz)\r\n\r\n"
+        .ascii "Agon Brainf*ck interpreter v1.1 - Phil Howlett (@Philbywhizz)\r\n\r\n"
         .ascii "An esoteric programming language with only eight commands. It is\r\n"
         .ascii "designed to challenge and amuse programmers with its minimalistic and\r\n"
         .ascii "obfuscated syntax.\r\n"
@@ -380,3 +460,4 @@ usage_txt:
 error_txt:
         .ascii "Error reading file.\r\n"
         .db $00
+;------------------------------------------------------------------------------
