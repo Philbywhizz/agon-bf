@@ -23,11 +23,14 @@ all:
 package: all
 	@echo "Packaging project..."
 	mkdir -p release
-	cp README.md release/
-	cp bin/$(NAME).bin release/
-	cp tests/hello.bf release/
-	cd release && zip -r $(NAME)-$(GIT_INFO).zip *
-	rm -fr release/README.md release/$(NAME).bin release/hello.bf
+	rm -fr release.tmp
+	mkdir -p release.tmp/bf-examples
+	cp README.md release.tmp/
+	cp bin/$(NAME).bin release.tmp/
+	@echo "...Adding examples to package..."
+	cp tests/hello.bf release.tmp/bf-examples
+	@echo "...Creating final zip package..."
+	cd release.tmp && zip -r ../release/$(NAME)-$(GIT_INFO).zip *
 
 clean:
 	@echo "Cleaning project..."
