@@ -28,7 +28,7 @@ package: all
 	cp README.md release.tmp/
 	cp bin/$(NAME).bin release.tmp/
 	@echo "...Adding examples to package..."
-	cp tests/hello.bf release.tmp/bf-examples
+	cp tests/*.bf release.tmp/bf-examples
 	@echo "...Creating final zip package..."
 	cd release.tmp && zip -r ../release/$(NAME)-$(GIT_INFO).zip *
 
